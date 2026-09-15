@@ -27,7 +27,9 @@ ShCADRequestStrategy* ShCADRequestFactory::create(ShCAD *shCAD, ShRequest *reque
 		strategy = new ShCADRequestRedoStrategy(shCAD, request);
 	else if (request->getType() == ShRequest::RequestChangeViewMode)
 		strategy = new ShCADRequestChangeViewModeStrategy(shCAD, request);
-		
+	else if (request->getType() == ShRequest::RequestOpenEDAFile)
+		strategy = new ShCADRequestOpenEDAFileStrategy(shCAD, request);
+
 
 	return strategy;
 }

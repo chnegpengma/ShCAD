@@ -9,6 +9,8 @@
 #include "Interface\Dialog\ShPlotDialog.h"
 #include "Manager\ShPlotManager.h"
 #include "Interface\Dialog\ShPlotPreviewDialog.h"
+#include <QFileDialog>
+#include <QMessageBox>
 
 ShAbstractMenu::ShAbstractMenu(const QString &title, ShChain *chain, QWidget *parent)
 	:QMenu(title, parent), ShChain(chain) {
@@ -28,7 +30,13 @@ ShEmptyDrawingFileMenu::ShEmptyDrawingFileMenu(const QString &title, ShChain *ch
 
 	this->addAction(this->newAction);
 
+	this->addSeparator();
+
+	this->openEDAAction = new QAction(ShIcon(":/Image/File/Open.jpg"), shGetLanValue_ui("File/OpenEDA"), this);
+	this->addAction(this->openEDAAction);
+
 	connect(this->newAction, &QAction::triggered, this, &ShEmptyDrawingFileMenu::newActionClicked);
+	connect(this->openEDAAction, &QAction::triggered, this, &ShEmptyDrawingFileMenu::openEDAActionClicked);
 }
 
 ShEmptyDrawingFileMenu::~ShEmptyDrawingFileMenu() {
@@ -36,8 +44,21 @@ ShEmptyDrawingFileMenu::~ShEmptyDrawingFileMenu() {
 }
 
 void ShEmptyDrawingFileMenu::newActionClicked() {
-	
+
 	ShRequestCreateNewCADWidget request;
+	this->request(&request);
+}
+
+void ShEmptyDrawingFileMenu::openEDAActionClicked() {
+
+	QString filter = shGetLanValue_ui("File/EDAFilter");
+	QString filePath = QFileDialog::getOpenFileName(nullptr,
+		shGetLanValue_ui("File/OpenEDA"), QString(), filter);
+
+	if (filePath.isEmpty())
+		return;
+
+	ShRequestOpenEDAFile request(filePath);
 	this->request(&request);
 }
 
@@ -49,6 +70,9 @@ ShFileMenu::ShFileMenu(const QString &title, ShChain *chain, QWidget *parent)
 	this->newAction = new QAction(ShIcon(":/Image/File/New.png"), shGetLanValue_ui("File/New"), this);
 	this->addAction(this->newAction);
 
+	this->openEDAAction = new QAction(ShIcon(":/Image/File/Open.jpg"), shGetLanValue_ui("File/OpenEDA"), this);
+	this->addAction(this->openEDAAction);
+
 	this->addSeparator();
 
 	this->plotAction = new QAction(ShIcon(":/Image/File/Print.png"), shGetLanValue_ui("File/Plot"), this);
@@ -59,6 +83,7 @@ ShFileMenu::ShFileMenu(const QString &title, ShChain *chain, QWidget *parent)
 
 
 	connect(this->newAction, &QAction::triggered, this, &ShFileMenu::newActionClicked);
+	connect(this->openEDAAction, &QAction::triggered, this, &ShFileMenu::openEDAActionClicked);
 	connect(this->plotAction, &QAction::triggered, this, &ShFileMenu::plotActionClicked);
 	connect(this->previewAction, &QAction::triggered, this, &ShFileMenu::previewActionClicked);
 }
@@ -68,8 +93,21 @@ ShFileMenu::~ShFileMenu() {
 }
 
 void ShFileMenu::newActionClicked() {
-	
+
 	ShRequestCreateNewCADWidget request;
+	this->request(&request);
+}
+
+void ShFileMenu::openEDAActionClicked() {
+
+	QString filter = shGetLanValue_ui("File/EDAFilter");
+	QString filePath = QFileDialog::getOpenFileName(nullptr,
+		shGetLanValue_ui("File/OpenEDA"), QString(), filter);
+
+	if (filePath.isEmpty())
+		return;
+
+	ShRequestOpenEDAFile request(filePath);
 	this->request(&request);
 }
 

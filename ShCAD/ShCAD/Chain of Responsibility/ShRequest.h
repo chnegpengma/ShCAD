@@ -15,6 +15,7 @@ public:
 		RequestUndo,
 		RequestRedo,
 		RequestChangeViewMode,
+		RequestOpenEDAFile,
 
 	};
 
@@ -85,7 +86,7 @@ public:
 		TabbedView,
 		Cascade,
 		Tile,
-		
+
 	};
 
 private:
@@ -97,6 +98,19 @@ public:
 
 	inline ViewMode getViewMode() const { return this->viewMode; }
 
+};
+
+// Request used to open an EDA file (.brd, ODB++, .spd) into the application.
+class ShRequestOpenEDAFile : public ShRequest {
+
+private:
+	QString filePath;
+
+public:
+	ShRequestOpenEDAFile(const QString &filePath);
+	~ShRequestOpenEDAFile();
+
+	inline const QString& getFilePath() const { return this->filePath; }
 };
 
 #endif //_SHREQUEST_H

@@ -75,4 +75,17 @@ public:
 };
 
 
+// Strategy that opens an EDA file (.brd, ODB++, .spd) and renders it in the
+// currently active CAD widget. If no widget is active, a new widget is
+// created first so the loaded content has somewhere to land.
+class ShCADRequestOpenEDAFileStrategy : public ShCADRequestStrategy {
+
+public:
+	ShCADRequestOpenEDAFileStrategy(ShCAD *shCAD, ShRequest *request);
+	~ShCADRequestOpenEDAFileStrategy();
+
+	virtual void response();
+};
+
+
 #endif //_SHCADREQUESTSTRATEGY_H

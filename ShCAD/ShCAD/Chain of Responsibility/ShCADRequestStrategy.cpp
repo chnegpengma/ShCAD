@@ -5,7 +5,9 @@
 #include "ShRequest.h"
 #include "Interface\ShCADWidget.h"
 #include "Base\ShGlobal.h"
+#include "Manager\ShEdaLoader.h"
 #include <qmdiarea.h>
+#include <qmessagebox.h>
 
 ShCADRequestStrategy::ShCADRequestStrategy(ShCAD *shCAD, ShRequest *request)
 	:shCAD(shCAD), request(request) {
@@ -134,4 +136,45 @@ void ShCADRequestChangeViewModeStrategy::response() {
 	else if (request->getViewMode() == ShRequestChangeViewMode::Tile)
 		this->shCAD->getMdiArea()->tileSubWindows();
 		
+}
+
+///////////////////////////////////////////////////////
+
+ShCADRequestOpenEDAFileStrategy::ShCADRequestOpenEDAFileStrategy(ShCAD *shCAD, ShRequest *request)
+	:ShCADRequestStrategy(shCAD, request) {
+
+}
+
+ShCADRequestOpenEDAFileStrategy::~ShCADRequestOpenEDAFileStrategy() {
+
+}
+
+void ShCADRequestOpenEDAFileStrategy::response() {
+
+	ShRequestOpenEDAFile *request = dynamic_cast<ShRequestOpenEDAFile*>(this->request);
+	if (request == nullptr)
+		return;
+
+	// If no CAD widget is currently active, create one so the loaded
+	// board has somewhere to be rendered. This mirrors the behaviour
+	// of the New widget request.
+	if (ShCADWidgetManager::getInstance()->getActivatedWidget() == nullptr)
+		this->shCAD->createCADWidget();
+
+	ShCADWidget *widget = ShCADWidgetManager::getInstance()->getActivatedWidget();
+	if (widget == nullptr) {
+		QMessageBox::warning(nullptr, "Open EDA File",
+			"No active CAD widget available for the loaded file.");
+		return;
+	}
+
+	ShEdaLoader *loader = ShEdaLoader::getInstance();
+	bool ok = loader->load(request->getFilePath(), widget);
+
+	if (ok)
+		QMessageBox::information(nullptr, "Open EDA File",
+			loader->getLastSummary());
+	else
+		QMessageBox::warning(nullptr, "Open EDA File",
+			"Failed to load the selected file.\n" + loader->getLastSummary());
 }

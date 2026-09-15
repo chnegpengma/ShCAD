@@ -75,3 +75,14 @@ ShRequestChangeViewMode::ShRequestChangeViewMode(ViewMode viewMode)
 ShRequestChangeViewMode::~ShRequestChangeViewMode() {
 
 }
+
+////////////////////////////////
+
+ShRequestOpenEDAFile::ShRequestOpenEDAFile(const QString &filePath)
+	:ShRequest(ShRequest::RequestOpenEDAFile), filePath(filePath) {
+
+}
+
+ShRequestOpenEDAFile::~ShRequestOpenEDAFile() {
+
+}
