@@ -3,6 +3,7 @@
 #define _SHEDALOADER_H
 
 #include <qstring.h>
+#include <qstringlist.h>
 #include <qlist.h>
 #include "Base\ShSingleton.h"
 
@@ -22,9 +23,10 @@ class ShEdaLoader {
 public:
 	enum Format {
 		FormatUnknown,
-		FormatBrd,    // Cadence Allegro board file
-		FormatOdbPP,  // ODB++ job directory
-		FormatSpd,    // Sprint-PCB / SPD file
+		FormatBrd,          // Cadence Allegro board file
+		FormatOdbPP,        // ODB++ job directory
+		FormatOdbPPArchive, // ODB++ job delivered as .tgz / .tar.gz / .zip archive
+		FormatSpd,          // Sprint-PCB / SPD file
 	};
 
 private:
@@ -50,8 +52,20 @@ public:
 
 private:
 	bool loadBrd(const QString &filePath, ShCADWidget *widget);
-	bool loadOdbPP(const QString &filePath, ShCADWidget *widget);
+	bool loadOdbPP(const QString &filePath, ShCADWidget *widget, const QString &displayName = QString());
 	bool loadSpd(const QString &filePath, ShCADWidget *widget);
+	bool loadOdbPPArchive(const QString &filePath, ShCADWidget *widget);
+
+	// Extract the supplied .tgz / .tar.gz / .zip archive into destDir using
+	// the extraction tools available on the system (tar, unzip, powershell).
+	bool extractArchive(const QString &archivePath, const QString &destDir);
+
+	// Locate the ODB++ job root inside an extracted archive tree. Archives
+	// frequently wrap the job inside a single folder, e.g. "jobname/ODB/...".
+	static QString findOdbJobDir(const QString &root);
+
+	// Run an external program and wait for it to finish.
+	static bool runProcess(const QString &program, const QStringList &args);
 
 	// Build a short textual summary that describes what has been loaded so it
 	// can be reported back to the user (e.g. via a message box).

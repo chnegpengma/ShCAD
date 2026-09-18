@@ -4,8 +4,11 @@
 #include <qfileinfo.h>
 #include <qdir.h>
 #include <qtextstream.h>
+#include <qregexp.h>
 #include <qdebug.h>
 #include <qmessagebox.h>
+#include <qprocess.h>
+#include <qtemporarydir.h>
 
 #include "Interface\ShCADWidget.h"
 #include "Base\ShLayer.h"
@@ -32,10 +35,11 @@ ShEdaLoader::~ShEdaLoader() {
 QString ShEdaLoader::formatToString(Format format) {
 
 	switch (format) {
-	case FormatBrd:   return "Allegro Board (.brd)";
-	case FormatOdbPP: return "ODB++ Job";
-	case FormatSpd:   return "SPD File (.spd)";
-	default:          return "Unknown";
+	case FormatBrd:          return "Allegro Board (.brd)";
+	case FormatOdbPP:        return "ODB++ Job";
+	case FormatOdbPPArchive: return "ODB++ Archive (.tgz/.zip)";
+	case FormatSpd:          return "SPD File (.spd)";
+	default:                 return "Unknown";
 	}
 }
 
@@ -74,6 +78,10 @@ ShEdaLoader::Format ShEdaLoader::detectFormat(const QString &filePath) {
 	if (suffix == "spd")
 		return FormatSpd;
 
+	// ODB++ jobs are frequently delivered as compressed archives.
+	if (suffix == "zip" || suffix == "tgz" || suffix == "gz" || suffix == "tar")
+		return FormatOdbPPArchive;
+
 	// Fall back to content sniffing for extension-less files.
 	QFile file(filePath);
 	if (file.open(QIODevice::ReadOnly)) {
@@ -111,9 +119,10 @@ bool ShEdaLoader::load(const QString &filePath, ShCADWidget *widget) {
 	bool ok = false;
 
 	switch (format) {
-	case FormatBrd:   ok = this->loadBrd(filePath, widget);   break;
-	case FormatOdbPP: ok = this->loadOdbPP(filePath, widget); break;
-	case FormatSpd:   ok = this->loadSpd(filePath, widget);    break;
+	case FormatBrd:          ok = this->loadBrd(filePath, widget);   break;
+	case FormatOdbPP:        ok = this->loadOdbPP(filePath, widget); break;
+	case FormatOdbPPArchive: ok = this->loadOdbPPArchive(filePath, widget); break;
+	case FormatSpd:          ok = this->loadSpd(filePath, widget);    break;
 	default:
 		this->lastSummary = "Unsupported EDA file: " + QFileInfo(filePath).fileName();
 		return false;
@@ -243,7 +252,7 @@ bool ShEdaLoader::loadBrd(const QString &filePath, ShCADWidget *widget) {
 //
 // We parse those records and turn them into ShLine entities.
 /////////////////////////////////////////////////////////////////////////////////////////////
-bool ShEdaLoader::loadOdbPP(const QString &filePath, ShCADWidget *widget) {
+bool ShEdaLoader::loadOdbPP(const QString &filePath, ShCADWidget *widget, const QString &displayName) {
 
 	QFileInfo info(filePath);
 	QString jobRoot = info.absoluteFilePath();
@@ -342,6 +351,8 @@ bool ShEdaLoader::loadOdbPP(const QString &filePath, ShCADWidget *widget) {
 	}
 
 	QString jobName = QFileInfo(jobRoot).fileName();
+	if (!displayName.isEmpty())
+		jobName = displayName;
 
 	QStringList uniqueLayers = layerList;
 	uniqueLayers.removeDuplicates();
@@ -351,12 +362,128 @@ bool ShEdaLoader::loadOdbPP(const QString &filePath, ShCADWidget *widget) {
 		.arg(stepList.size())
 		.arg(uniqueLayers.size());
 
-	this->lastSummary = this->buildSummary(FormatOdbPP, filePath, entityCount, extraInfo);
+	// When the job came from an extracted archive the real path is a
+	// temporary directory, so report the display name instead.
+	QString summaryFilePath = filePath;
+	if (!displayName.isEmpty())
+		summaryFilePath = displayName;
+
+	this->lastSummary = this->buildSummary(FormatOdbPP, summaryFilePath, entityCount, extraInfo);
 
 	widget->update((DrawType)(DrawType::DrawCaptureImage | DrawType::DrawAddedEntities));
 	widget->captureImage();
 
 	return true;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+// ODB++ archive loader
+//
+// ODB++ jobs are often delivered as compressed archives (.tgz, .tar.gz, .zip).
+// The archive is extracted into a temporary directory (the extraction is done
+// with the tools available on the system: tar on Windows 10+/Linux/macOS,
+// unzip / PowerShell Expand-Archive as fallbacks for .zip) and the resulting
+// job directory is then loaded with the regular ODB++ loader. The temporary
+// directory is removed automatically once loading has finished.
+/////////////////////////////////////////////////////////////////////////////////////////////
+bool ShEdaLoader::loadOdbPPArchive(const QString &filePath, ShCADWidget *widget) {
+
+	QTemporaryDir tempDir;
+	if (!tempDir.isValid()) {
+		this->lastSummary = "Failed to create a temporary directory for archive extraction.";
+		return false;
+	}
+
+	if (!this->extractArchive(filePath, tempDir.path())) {
+		this->lastSummary =
+			"Failed to extract the ODB++ archive with the tools available on this system.\n"
+			"Please extract the archive manually and open the resulting folder\n"
+			"via File > Open ODB++ Job Folder.";
+		return false;
+	}
+
+	QString jobDir = ShEdaLoader::findOdbJobDir(tempDir.path());
+	QString displayName = QFileInfo(filePath).completeBaseName();
+
+	return this->loadOdbPP(jobDir, widget, displayName);
+}
+
+bool ShEdaLoader::extractArchive(const QString &archivePath, const QString &destDir) {
+
+	QStringList args;
+	args << "-xf" << archivePath << "-C" << destDir;
+
+	// bsdtar handles .tgz, .tar.gz and .zip on Windows 10+, macOS and Linux.
+	if (ShEdaLoader::runProcess("tar", args))
+		return true;
+
+	QString suffix = QFileInfo(archivePath).suffix().toLower();
+
+	if (suffix == "zip") {
+
+		// unzip is available on most Linux distributions.
+		QStringList unzipArgs;
+		unzipArgs << "-o" << "-q" << archivePath << "-d" << destDir;
+
+		if (ShEdaLoader::runProcess("unzip", unzipArgs))
+			return true;
+
+		// Windows PowerShell Expand-Archive (PowerShell 5 or later).
+		QStringList psArgs;
+		psArgs << "-NoProfile" << "-Command"
+			<< QString("Expand-Archive -LiteralPath '%1' -DestinationPath '%2' -Force")
+				.arg(archivePath, destDir);
+
+		if (ShEdaLoader::runProcess("powershell", psArgs))
+			return true;
+	}
+
+	return false;
+}
+
+QString ShEdaLoader::findOdbJobDir(const QString &root) {
+
+	// Walk the extracted tree (breadth first, bounded) and return the first
+	// directory that looks like an ODB++ job root.
+	QStringList queue;
+	queue << root;
+
+	int visited = 0;
+
+	while (!queue.isEmpty() && visited < 500) {
+
+		++visited;
+
+		QString dirPath = queue.takeFirst();
+		QDir dir(dirPath);
+
+		if (dir.exists("steps") || dir.exists("ODB"))
+			return dirPath;
+
+		QStringList subDirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
+
+		for (const QString & sub : subDirs)
+			queue << dir.absoluteFilePath(sub);
+	}
+
+	return root;
+}
+
+bool ShEdaLoader::runProcess(const QString &program, const QStringList &args) {
+
+	QProcess process;
+	process.start(program, args);
+
+	if (!process.waitForStarted(3000))
+		return false;
+
+	if (!process.waitForFinished(60000)) {
+		process.kill();
+		process.waitForFinished(3000);
+		return false;
+	}
+
+	return process.exitStatus() == QProcess::ExitStatus::NormalExit && process.exitCode() == 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

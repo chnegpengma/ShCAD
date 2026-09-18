@@ -35,8 +35,12 @@ ShEmptyDrawingFileMenu::ShEmptyDrawingFileMenu(const QString &title, ShChain *ch
 	this->openEDAAction = new QAction(ShIcon(":/Image/File/Open.jpg"), shGetLanValue_ui("File/OpenEDA"), this);
 	this->addAction(this->openEDAAction);
 
+	this->openOdbJobAction = new QAction(ShIcon(":/Image/File/Open.jpg"), shGetLanValue_ui("File/OpenOdbJob"), this);
+	this->addAction(this->openOdbJobAction);
+
 	connect(this->newAction, &QAction::triggered, this, &ShEmptyDrawingFileMenu::newActionClicked);
 	connect(this->openEDAAction, &QAction::triggered, this, &ShEmptyDrawingFileMenu::openEDAActionClicked);
+	connect(this->openOdbJobAction, &QAction::triggered, this, &ShEmptyDrawingFileMenu::openOdbJobActionClicked);
 }
 
 ShEmptyDrawingFileMenu::~ShEmptyDrawingFileMenu() {
@@ -62,6 +66,19 @@ void ShEmptyDrawingFileMenu::openEDAActionClicked() {
 	this->request(&request);
 }
 
+void ShEmptyDrawingFileMenu::openOdbJobActionClicked() {
+
+	QString dirPath = QFileDialog::getExistingDirectory(nullptr,
+		shGetLanValue_ui("File/OpenOdbJob"), QString(),
+		QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+
+	if (dirPath.isEmpty())
+		return;
+
+	ShRequestOpenEDAFile request(dirPath);
+	this->request(&request);
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 ShFileMenu::ShFileMenu(const QString &title, ShChain *chain, QWidget *parent)
@@ -72,6 +89,9 @@ ShFileMenu::ShFileMenu(const QString &title, ShChain *chain, QWidget *parent)
 
 	this->openEDAAction = new QAction(ShIcon(":/Image/File/Open.jpg"), shGetLanValue_ui("File/OpenEDA"), this);
 	this->addAction(this->openEDAAction);
+
+	this->openOdbJobAction = new QAction(ShIcon(":/Image/File/Open.jpg"), shGetLanValue_ui("File/OpenOdbJob"), this);
+	this->addAction(this->openOdbJobAction);
 
 	this->addSeparator();
 
@@ -84,6 +104,7 @@ ShFileMenu::ShFileMenu(const QString &title, ShChain *chain, QWidget *parent)
 
 	connect(this->newAction, &QAction::triggered, this, &ShFileMenu::newActionClicked);
 	connect(this->openEDAAction, &QAction::triggered, this, &ShFileMenu::openEDAActionClicked);
+	connect(this->openOdbJobAction, &QAction::triggered, this, &ShFileMenu::openOdbJobActionClicked);
 	connect(this->plotAction, &QAction::triggered, this, &ShFileMenu::plotActionClicked);
 	connect(this->previewAction, &QAction::triggered, this, &ShFileMenu::previewActionClicked);
 }
@@ -108,6 +129,19 @@ void ShFileMenu::openEDAActionClicked() {
 		return;
 
 	ShRequestOpenEDAFile request(filePath);
+	this->request(&request);
+}
+
+void ShFileMenu::openOdbJobActionClicked() {
+
+	QString dirPath = QFileDialog::getExistingDirectory(nullptr,
+		shGetLanValue_ui("File/OpenOdbJob"), QString(),
+		QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+
+	if (dirPath.isEmpty())
+		return;
+
+	ShRequestOpenEDAFile request(dirPath);
 	this->request(&request);
 }
 

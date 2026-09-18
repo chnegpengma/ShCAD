@@ -18,6 +18,7 @@ class ShEmptyDrawingFileMenu : public ShAbstractMenu {
 private:
 	QAction *newAction;
 	QAction *openEDAAction;
+	QAction *openOdbJobAction;
 
 public:
 	ShEmptyDrawingFileMenu(const QString &title, ShChain *chain, QWidget *parent = nullptr);
@@ -26,6 +27,7 @@ public:
 	private slots:
 	void newActionClicked();
 	void openEDAActionClicked();
+	void openOdbJobActionClicked();
 };
 
 class ShFileMenu : public ShAbstractMenu {
@@ -33,6 +35,7 @@ class ShFileMenu : public ShAbstractMenu {
 private:
 	QAction *newAction;
 	QAction *openEDAAction;
+	QAction *openOdbJobAction;
 	QAction *plotAction;
 	QAction *previewAction;
 
@@ -43,6 +46,7 @@ public:
 	private slots:
 	void newActionClicked();
 	void openEDAActionClicked();
+	void openOdbJobActionClicked();
 	void plotActionClicked();
 	void previewActionClicked();
 };
